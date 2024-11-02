@@ -2,12 +2,15 @@
 import {defineComponent} from 'vue'
 
 export default defineComponent({
-name: "WsClient"
+  name: "ClientOptionsEditor",
+  setup() {
+
+  }
 })
 </script>
 
 <template>
-  
+<input type="text"/>
 </template>
 
 <style scoped>

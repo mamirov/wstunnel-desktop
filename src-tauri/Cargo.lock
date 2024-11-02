@@ -156,12 +156,17 @@ checksum = "74f37166d7d48a0284b99dd824694c26119c700b53bf0d1540cdb147dbdaaf13"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
+ "parking_lot",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
+ "tokio",
+ "tokio-rustls 0.26.0",
+ "url",
  "wstunnel",
 ]
 
