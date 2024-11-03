@@ -16,10 +16,12 @@ use wstunnel::protocols::dns::DnsResolver;
 use wstunnel::protocols::tls;
 use wstunnel::tunnel::client::{TlsClientConfig, WsClient, WsClientConfig};
 use wstunnel::tunnel::connectors::{Socks5TunnelConnector, TcpTunnelConnector, UdpTunnelConnector};
-use wstunnel::tunnel::listeners::{new_stdio_listener, HttpProxyTunnelListener, Socks5TunnelListener, TcpTunnelListener, UdpTunnelListener};
+use wstunnel::tunnel::listeners::{
+    new_stdio_listener, HttpProxyTunnelListener, Socks5TunnelListener, TcpTunnelListener,
+    UdpTunnelListener,
+};
 use wstunnel::tunnel::transport::{TransportAddr, TransportScheme};
 use wstunnel::tunnel::{client, to_host_port, LocalProtocol, RemoteAddr};
-
 
 const DEFAULT_CLIENT_UPGRADE_PATH_PREFIX: &str = "v1";
 
@@ -30,15 +32,19 @@ impl WsClientApi {
         let (tls_certificate, tls_key) = if let (Some(cert), Some(key)) =
             (args.tls_certificate.as_ref(), args.tls_private_key.as_ref())
         {
-            let tls_certificate =
-                tls::load_certificates_from_pem(cert).expect("Cannot load client TLS certificate (mTLS)");
-            let tls_key = tls::load_private_key_from_file(key).expect("Cannot load client TLS private key (mTLS)");
+            let tls_certificate = tls::load_certificates_from_pem(cert)
+                .expect("Cannot load client TLS certificate (mTLS)");
+            let tls_key = tls::load_private_key_from_file(key)
+                .expect("Cannot load client TLS private key (mTLS)");
             (Some(tls_certificate), Some(tls_key))
         } else {
             (None, None)
         };
 
-        let http_upgrade_path_prefix = if args.http_upgrade_path_prefix.eq(DEFAULT_CLIENT_UPGRADE_PATH_PREFIX) {
+        let http_upgrade_path_prefix = if args
+            .http_upgrade_path_prefix
+            .eq(DEFAULT_CLIENT_UPGRADE_PATH_PREFIX)
+        {
             // When using mTLS and no manual http upgrade path is specified configure the HTTP upgrade path
             // to be the common name (CN) of the client's certificate.
             tls_certificate
@@ -50,8 +56,8 @@ impl WsClientApi {
             args.http_upgrade_path_prefix
         };
 
-        let transport_scheme =
-            TransportScheme::from_str(args.remote_addr.scheme()).expect("invalid scheme in server url");
+        let transport_scheme = TransportScheme::from_str(args.remote_addr.scheme())
+            .expect("invalid scheme in server url");
         let tls = match transport_scheme {
             TransportScheme::Ws | TransportScheme::Http => None,
             TransportScheme::Wss | TransportScheme::Https => Some(TlsClientConfig {
@@ -63,7 +69,7 @@ impl WsClientApi {
                         tls_certificate,
                         tls_key,
                     )
-                        .expect("Cannot create tls connector"),
+                    .expect("Cannot create tls connector"),
                 )),
                 tls_sni_override: args.tls_sni_override,
                 tls_verify_certificate: args.tls_verify_certificate,
@@ -74,22 +80,27 @@ impl WsClientApi {
         };
 
         // Extract host header from http_headers
-        let host_header = if let Some((_, host_val)) = args.http_headers.iter().find(|(h, _)| *h == HOST) {
-            host_val.clone()
-        } else {
-            let host = match args.remote_addr.port_or_known_default() {
-                None | Some(80) | Some(443) => args.remote_addr.host().unwrap().to_string(),
-                Some(port) => format!("{}:{}", args.remote_addr.host().unwrap(), port),
+        let host_header =
+            if let Some((_, host_val)) = args.http_headers.iter().find(|(h, _)| *h == HOST) {
+                host_val.clone()
+            } else {
+                let host = match args.remote_addr.port_or_known_default() {
+                    None | Some(80) | Some(443) => args.remote_addr.host().unwrap().to_string(),
+                    Some(port) => format!("{}:{}", args.remote_addr.host().unwrap(), port),
+                };
+                HeaderValue::from_str(&host)?
             };
-            HeaderValue::from_str(&host)?
-        };
         if let Some(path) = &args.http_headers_file {
             if !path.exists() {
                 panic!("http headers file does not exists: {}", path.display());
             }
         }
 
-        let http_proxy = Self::mk_http_proxy(args.http_proxy, args.http_proxy_login, args.http_proxy_password)?;
+        let http_proxy = Self::mk_http_proxy(
+            args.http_proxy,
+            args.http_proxy_login,
+            args.http_proxy_password,
+        )?;
         let client_config = WsClientConfig {
             remote_addr: TransportAddr::new(
                 TransportScheme::from_str(args.remote_addr.scheme()).unwrap(),
@@ -97,11 +108,15 @@ impl WsClientApi {
                 args.remote_addr.port_or_known_default().unwrap(),
                 tls,
             )
-                .unwrap(),
+            .unwrap(),
             socket_so_mark: args.socket_so_mark,
             http_upgrade_path_prefix,
             http_upgrade_credentials: args.http_upgrade_credentials,
-            http_headers: args.http_headers.into_iter().filter(|(k, _)| k != HOST).collect(),
+            http_headers: args
+                .http_headers
+                .into_iter()
+                .filter(|(k, _)| k != HOST)
+                .collect(),
             http_headers_file: args.http_headers_file,
             http_header_host: host_header,
             timeout_connect: Duration::from_secs(10),
@@ -116,12 +131,16 @@ impl WsClientApi {
                 args.socket_so_mark,
                 !args.dns_resolver_prefer_ipv4,
             )
-                .expect("cannot create dns resolver"),
+            .expect("cannot create dns resolver"),
             http_proxy,
         };
 
-        let client =
-            WsClient::new(client_config, args.connection_min_idle, args.connection_retry_max_backoff_sec).await?;
+        let client = WsClient::new(
+            client_config,
+            args.connection_min_idle,
+            args.connection_retry_max_backoff_sec,
+        )
+        .await?;
         info!("Starting wstunnel client v{}", env!("CARGO_PKG_VERSION"),);
 
         // Start tunnels
@@ -168,38 +187,56 @@ impl WsClientApi {
                             &cfg.dns_resolver,
                         );
 
-                        if let Err(err) = client.run_reverse_tunnel(remote.clone(), udp_connector).await {
+                        if let Err(err) = client
+                            .run_reverse_tunnel(remote.clone(), udp_connector)
+                            .await
+                        {
                             error!("{:?}", err);
                         }
                     });
                 }
-                LocalProtocol::ReverseSocks5 { timeout, credentials } => {
+                LocalProtocol::ReverseSocks5 {
+                    timeout,
+                    credentials,
+                } => {
                     let credentials = credentials.clone();
                     let timeout = *timeout;
                     tokio::spawn(async move {
                         let cfg = client.config.clone();
                         let (host, port) = to_host_port(tunnel.local);
                         let remote = RemoteAddr {
-                            protocol: LocalProtocol::ReverseSocks5 { timeout, credentials },
+                            protocol: LocalProtocol::ReverseSocks5 {
+                                timeout,
+                                credentials,
+                            },
                             host,
                             port,
                         };
-                        let socks_connector =
-                            Socks5TunnelConnector::new(cfg.socket_so_mark, cfg.timeout_connect, &cfg.dns_resolver);
+                        let socks_connector = Socks5TunnelConnector::new(
+                            cfg.socket_so_mark,
+                            cfg.timeout_connect,
+                            &cfg.dns_resolver,
+                        );
 
                         if let Err(err) = client.run_reverse_tunnel(remote, socks_connector).await {
                             error!("{:?}", err);
                         }
                     });
                 }
-                LocalProtocol::ReverseHttpProxy { timeout, credentials } => {
+                LocalProtocol::ReverseHttpProxy {
+                    timeout,
+                    credentials,
+                } => {
                     let credentials = credentials.clone();
                     let timeout = *timeout;
                     tokio::spawn(async move {
                         let cfg = client.config.clone();
                         let (host, port) = to_host_port(tunnel.local);
                         let remote = RemoteAddr {
-                            protocol: LocalProtocol::ReverseHttpProxy { timeout, credentials },
+                            protocol: LocalProtocol::ReverseHttpProxy {
+                                timeout,
+                                credentials,
+                            },
                             host,
                             port,
                         };
@@ -211,7 +248,10 @@ impl WsClientApi {
                             &cfg.dns_resolver,
                         );
 
-                        if let Err(err) = client.run_reverse_tunnel(remote.clone(), tcp_connector).await {
+                        if let Err(err) = client
+                            .run_reverse_tunnel(remote.clone(), tcp_connector)
+                            .await
+                        {
                             error!("{:?}", err);
                         }
                     });
@@ -257,8 +297,12 @@ impl WsClientApi {
 
             match &tunnel.local_protocol {
                 LocalProtocol::Tcp { proxy_protocol } => {
-                    let server =
-                        TcpTunnelListener::new(tunnel.local, tunnel.remote.clone(), *proxy_protocol).await?;
+                    let server = TcpTunnelListener::new(
+                        tunnel.local,
+                        tunnel.remote.clone(),
+                        *proxy_protocol,
+                    )
+                    .await?;
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
                             error!("{:?}", err);
@@ -277,9 +321,14 @@ impl WsClientApi {
                     });
                 }
                 #[cfg(unix)]
-                LocalProtocol::Unix { path, proxy_protocol } => {
+                LocalProtocol::Unix {
+                    path,
+                    proxy_protocol,
+                } => {
                     use crate::tunnel::listeners::UnixTunnelListener;
-                    let server = UnixTunnelListener::new(path, tunnel.remote.clone(), *proxy_protocol).await?;
+                    let server =
+                        UnixTunnelListener::new(path, tunnel.remote.clone(), *proxy_protocol)
+                            .await?;
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
                             error!("{:?}", err);
@@ -306,7 +355,9 @@ impl WsClientApi {
                     panic!("Transparent proxy is not available for non Linux platform")
                 }
                 LocalProtocol::Udp { timeout } => {
-                    let server = UdpTunnelListener::new(tunnel.local, tunnel.remote.clone(), *timeout).await?;
+                    let server =
+                        UdpTunnelListener::new(tunnel.local, tunnel.remote.clone(), *timeout)
+                            .await?;
 
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
@@ -314,8 +365,13 @@ impl WsClientApi {
                         }
                     });
                 }
-                LocalProtocol::Socks5 { timeout, credentials } => {
-                    let server = Socks5TunnelListener::new(tunnel.local, *timeout, credentials.clone()).await?;
+                LocalProtocol::Socks5 {
+                    timeout,
+                    credentials,
+                } => {
+                    let server =
+                        Socks5TunnelListener::new(tunnel.local, *timeout, credentials.clone())
+                            .await?;
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
                             error!("{:?}", err);
@@ -327,9 +383,13 @@ impl WsClientApi {
                     credentials,
                     proxy_protocol,
                 } => {
-                    let server =
-                        HttpProxyTunnelListener::new(tunnel.local, *timeout, credentials.clone(), *proxy_protocol)
-                            .await?;
+                    let server = HttpProxyTunnelListener::new(
+                        tunnel.local,
+                        *timeout,
+                        credentials.clone(),
+                        *proxy_protocol,
+                    )
+                    .await?;
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
                             error!("{:?}", err);
@@ -338,7 +398,8 @@ impl WsClientApi {
                 }
 
                 LocalProtocol::Stdio { proxy_protocol } => {
-                    let (server, mut handle) = new_stdio_listener(tunnel.remote.clone(), *proxy_protocol).await?;
+                    let (server, mut handle) =
+                        new_stdio_listener(tunnel.remote.clone(), *proxy_protocol).await?;
                     tokio::spawn(async move {
                         if let Err(err) = client.run_tunnel(server).await {
                             error!("{:?}", err);
@@ -348,9 +409,9 @@ impl WsClientApi {
                     // We need to wait for either a ctrl+c of that the stdio tunnel is closed
                     // to force exit the program
                     select! {
-                           _ = handle.closed() => {},
-                           _ = tokio::signal::ctrl_c() => {}
-                        }
+                       _ = handle.closed() => {},
+                       _ = tokio::signal::ctrl_c() => {}
+                    }
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     std::process::exit(0);
                 }

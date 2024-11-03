@@ -1,16 +1,54 @@
 <script lang="ts">
-import {defineComponent} from 'vue'
+import {defineComponent, Ref, ref} from 'vue'
+import {WsClientConfig} from "../models/WsClientConfig.ts";
 
 export default defineComponent({
   name: "ClientOptionsEditor",
-  setup() {
+  emits: ['close'],
+  props: {
+    clientConfig: {
+      type: {} as WsClientConfig,
+      required: false
+    }
+  },
+  setup(props, {emit}) {
+    const clientConfigs = ref<WsClientConfig>({
+      name: '',
+      listenAddr: '',
+      serverAddr: ''
+    })
+    if (props.clientConfig !== undefined) {
+      clientConfigs.value = props.clientConfig;
+    }
+    const clearView = () => {
+      emit('close', clientConfigs);
+    }
 
+    return {clearView, clientConfigs}
   }
 })
 </script>
 
 <template>
-<input type="text"/>
+  <v-sheet class="mx-auto" width="300">
+    <v-form>
+      <v-text-field
+          v-model="clientConfigs.name"
+          label="Name:">
+      </v-text-field>
+      <v-text-field
+          v-model="clientConfigs.listenAddr"
+          label="Listen address:">
+      </v-text-field>
+
+      <v-text-field
+          v-model="clientConfigs.serverAddr"
+          label="Server address:">
+      </v-text-field>
+
+      <v-btn @click="clearView()">Save</v-btn>
+    </v-form>
+  </v-sheet>
 </template>
 
 <style scoped>

@@ -1,9 +1,5 @@
 export interface WsClientConfig {
-    listenAddr: String,
-    serverAddr: ServerAddr
-}
-
-export interface ServerAddr {
-    scheme: String,
-    host: String
+    name: string
+    listenAddr: string,
+    serverAddr: string
 }

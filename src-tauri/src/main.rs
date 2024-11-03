@@ -7,9 +7,9 @@ use wstunnel::tunnel::client::WsClient;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
-  format!("Hello, {}!", name)
+    format!("Hello, {}!", name)
 }
 
 fn main() {
-  app_lib::run();
+    app_lib::run();
 }
