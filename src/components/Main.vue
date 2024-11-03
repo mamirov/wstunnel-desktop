@@ -52,9 +52,13 @@ export default defineComponent({
 
     const deleteConf = async (config: WsClientConfig) => {
       configList.value = configList.value.filter(value => value.name !== config.name);
+      if (config.name === confToEdit.value?.name) {
+        mainContent.value = '';
+      }
       await saveToStore();
     }
 
+    const focusIndex = ref(-1)
 
     onMounted(() => {
       loadConfig();
@@ -68,7 +72,8 @@ export default defineComponent({
       editConf,
       mainContent,
       openNewConfig,
-      pickConfig
+      pickConfig,
+      focusIndex
     }
   }
 })
@@ -100,13 +105,15 @@ export default defineComponent({
           <v-btn color="primary" @click="openNewConfig">Add new conf</v-btn>
         </v-list-item>
         <v-divider></v-divider>
-        <v-list-item v-for="config in configList"
+        <v-list-item v-for="(config, index) in configList"
                      :key="config.name" @click="pickConfig(config)"
+                     @mouseover="focusIndex = index"
+                     @mouseleave="focusIndex = null"
         >
-          <v-layout class="mx-auto">
+          <v-layout class="ma-1 align-center">
             {{ config.name }}
             <v-spacer></v-spacer>
-            <v-btn icon size="small" @click="editConf(config)">
+            <v-btn v-if="focusIndex === index" class="ma-1" icon size="x-small" @click="editConf(config)">
               <v-icon>mdi-pencil</v-icon>
               <v-tooltip
                   activator="parent"
@@ -114,7 +121,7 @@ export default defineComponent({
               >Edit
               </v-tooltip>
             </v-btn>
-            <v-btn icon size="small" @click="deleteConf(config)">
+            <v-btn v-if="focusIndex === index" class="ma-1" icon size="x-small" @click="deleteConf(config)">
               <v-icon>mdi-delete</v-icon>
               <v-tooltip
                   activator="parent"

@@ -30,7 +30,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <v-sheet class="mx-auto" width="300">
+  <v-sheet class="mx-auto ma-5" width="300">
     <v-form>
       <v-text-field
           v-model="clientConfigs.name"
